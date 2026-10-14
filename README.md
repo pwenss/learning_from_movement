@@ -75,7 +75,7 @@ The following example is taken from the **New York training split**, trajectory 
 *Example input. Eight separate StreetView images as presented to the model. The route identifier above is documentation metadata and is not part of the model prompt.*
 
 <details>
-<summary><strong>Complete frozen student prompt: system and user messages</strong></summary>
+<summary><strong>Complete student prompt</strong></summary>
 
 **System message**
 
@@ -131,7 +131,7 @@ After this user text, each label `Image 0:` through `Image 7:` immediately prece
 </details>
 
 <details>
-<summary><strong>Reference order — not supplied to the student</strong></summary>
+<summary><strong>Reference order</strong></summary>
 
 ```text
 <answer>
@@ -255,7 +255,7 @@ SFT generation used vLLM 0.17.1; later GRPO + OPSD evaluations used vLLM 0.29.0.
 ### 5.1 SFT results
 
 | Modality | Selected SFT step | Probe EM | base OOD EM | SFT OOD EM |
-|---|---:|---:|---:|---:|---:|
+|---|---:|---:|---:|---:|
 | StreetView | 500 | 69.14% | 29/3,525 = 0.82% | **2,269/3,525 = 64.37%** |
 | Satellite | 700 | 83.20% | 39/4,299 = 0.91% | **3,394/4,299 = 78.95%** |
 
@@ -272,7 +272,7 @@ Detailed results: [SFT results](training/SFT/sft_results.md).
 ### 5.2 GRPO + OPSD: matched merged-SFT comparison
 
 | Modality | Selected step | Merged SFT OOD EM | Post-training OOD EM | Improvement |
-|---|---|---:|---:|---:|---:|
+|---|---|---:|---:|---:|
 | StreetView | 68 | 2,248/3,525 = 63.77% | **2,404/3,525 = 68.20%** | **+156 trajectories / +4.43 pp** |
 | Satellite | 51 | 3,358/4,299 = 78.11% | **3,515/4,299 = 81.76%** | **+157 trajectories / +3.65 pp** |
 
