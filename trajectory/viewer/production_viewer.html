@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Street View trajectory explorer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--ink:#17212b;--muted:#65717d;--line:#d9e0e6;--paper:#fff;--canvas:#f3f6f8;--accent:#0c7c86;--accent-soft:#e4f3f3;--orange:#e07a22;--shadow:0 10px 30px #17212b12}
+*{box-sizing:border-box}html,body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}
+.app{min-height:100vh;display:grid;grid-template-columns:280px minmax(0,1fr)}.sidebar{background:#10242b;color:#ecf5f5;padding:22px 16px;display:flex;flex-direction:column;gap:18px;min-height:100vh}.brand{display:flex;align-items:center;gap:11px}.brand-mark{width:34px;height:34px;border:2px solid #8dd4d3;border-radius:8px;display:grid;place-items:center;font-weight:800;color:#8dd4d3}.brand h1{font-size:15px;line-height:1.1;margin:0}.brand small{display:block;color:#a5bdc1;font-size:11px;margin-top:3px}.side-label{font-size:11px;color:#a5bdc1;text-transform:uppercase;letter-spacing:.08em}.city-list{display:flex;flex-direction:column;gap:3px;overflow:auto;min-height:0}.city-button{border:0;background:transparent;color:#d9e9e9;text-align:left;padding:9px 10px;border-radius:6px;display:flex;justify-content:space-between;gap:8px}.city-button:hover{background:#1c3b43}.city-button.active{background:#28626a;color:#fff}.city-button span:last-child{color:#8eb5b8;font-variant-numeric:tabular-nums}.side-foot{margin-top:auto;color:#8da7aa;font-size:11px;line-height:1.55}.main{min-width:0;padding:24px 28px 44px}.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:22px}.eyebrow{font-size:11px;color:var(--accent);font-weight:750;letter-spacing:.1em;text-transform:uppercase}.topbar h2{font-size:27px;line-height:1.1;margin:5px 0 7px}.topbar p{margin:0;color:var(--muted)}.dataset-pill{background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:10px 13px;color:var(--muted);font-size:12px;white-space:nowrap}.dataset-pill strong{display:block;color:var(--ink);font-size:14px;margin-bottom:2px}.controls{display:flex;gap:10px;align-items:center;margin-bottom:15px}.search{flex:1;min-width:160px;border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--paper);outline:none}.search:focus{border-color:var(--accent);box-shadow:0 0 0 3px #0c7c8620}.count{color:var(--muted);font-size:12px;white-space:nowrap}.route-list{display:flex;gap:7px;overflow-x:auto;padding:1px 1px 12px;margin-bottom:13px}.route-chip{flex:0 0 auto;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:6px;padding:8px 10px;text-align:left;min-width:128px}.route-chip:hover{border-color:#8ebfc1}.route-chip.active{background:var(--accent-soft);border-color:var(--accent);color:#07545b}.route-chip strong{display:block;font-size:12px}.route-chip span{display:block;color:var(--muted);font-size:11px;margin-top:2px}.panel{background:var(--paper);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);overflow:hidden}.route-heading{padding:18px 20px 15px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:15px;align-items:flex-start}.route-heading h3{margin:0;font-size:20px}.route-heading p{margin:4px 0 0;color:var(--muted);font-size:12px}.route-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.outline{background:#fff;border:1px solid var(--line);color:var(--ink);border-radius:5px;padding:7px 10px;text-decoration:none;font-size:12px}.outline:hover{border-color:var(--accent);color:var(--accent)}#map{height:330px;background:#dfe8e8}.map-note{padding:8px 20px;color:var(--muted);font-size:12px;border-bottom:1px solid var(--line)}.frames-head{padding:17px 20px 10px;display:flex;justify-content:space-between;align-items:end;gap:12px}.frames-head h4{margin:0;font-size:16px}.frames-head span{color:var(--muted);font-size:12px}.sequence{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0 20px 20px}.frame{margin:0;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#f8fafb;cursor:pointer}.frame:hover,.frame.active{border-color:var(--accent);box-shadow:0 0 0 2px #0c7c8620}.frame img{width:100%;display:block;aspect-ratio:2/1;object-fit:cover;background:#dce4e5}.frame figcaption{display:flex;justify-content:space-between;gap:6px;padding:8px 9px;font-size:11px}.frame figcaption span{color:var(--muted)}.detail{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;padding:18px 20px 20px;border-top:1px solid var(--line)}.detail img{width:100%;display:block;aspect-ratio:2/1;object-fit:cover;background:#dce4e5;border-radius:5px}.detail-side{font-size:12px;color:var(--muted)}.detail-side strong{display:block;color:var(--ink);font-size:13px;margin-bottom:5px}.metadata{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;margin-top:10px}.metadata dt{color:var(--muted)}.metadata dd{margin:0;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}.empty{padding:70px 20px;text-align:center;color:var(--muted)}.loading{padding:30px;color:var(--muted)}
+@media(max-width:1000px){.app{grid-template-columns:220px minmax(0,1fr)}.main{padding:20px}.sequence{grid-template-columns:repeat(2,minmax(0,1fr))}.detail{grid-template-columns:1fr}.detail-side{display:none}}
+@media(max-width:700px){.app{display:block}.sidebar{min-height:auto;padding:14px 14px 10px}.brand{margin-bottom:3px}.city-list{flex-direction:row;overflow-x:auto}.city-button{flex:0 0 auto;padding:7px 9px}.side-label,.side-foot{display:none}.main{padding:16px 12px 30px}.topbar{display:block}.dataset-pill{display:inline-block;margin-top:13px}.topbar h2{font-size:23px}.route-heading{display:block}.route-actions{justify-content:flex-start;margin-top:12px}.sequence{padding:0 12px 14px;gap:7px}.frames-head{padding:14px 12px 9px}.map-note{padding:8px 12px}.detail{padding:12px}.controls{margin-bottom:9px}}
+</style>
+<style>
+body.satellite-mode .frame img,body.satellite-mode .detail img{aspect-ratio:1/1}
+</style>
+<style>
+.view-controls{display:flex;align-items:center;gap:10px;margin-bottom:16px}.mode-toggle{display:flex;border:1px solid var(--line);border-radius:7px;background:var(--paper);padding:3px}.mode-toggle button{border:0;background:transparent;color:var(--muted);border-radius:5px;padding:8px 12px;font-size:12px}.mode-toggle button.active{background:var(--accent);color:#fff}.eval-select{border:1px solid var(--line);border-radius:6px;background:var(--paper);padding:8px 10px;color:var(--ink);min-width:260px}.metrics{display:flex;flex-wrap:wrap;gap:8px;padding:14px 20px;border-bottom:1px solid var(--line);background:#f8fafb}.metric{border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:112px}.metric strong{display:block;color:var(--ink);font-size:15px}.metric span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em}.order-block{padding:14px 20px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:12px}.order-block strong{color:var(--muted);font-weight:600}.order-block code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--ink);word-break:break-word}.model-output{padding:16px 20px;border-top:1px solid var(--line)}.model-output h4{margin:0 0 8px;font-size:15px}.model-output pre{margin:0;padding:12px;background:#f5f7f8;border:1px solid var(--line);border-radius:6px;white-space:pre-wrap;word-break:break-word;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;max-height:360px;overflow:auto}.model-output details{margin-top:10px}.model-output summary{cursor:pointer;color:var(--accent);font-size:12px}
+@media(max-width:700px){.view-controls{align-items:stretch;flex-direction:column}.mode-toggle{justify-content:stretch}.mode-toggle button{flex:1}.eval-select{min-width:0}.metrics,.order-block,.model-output{padding-left:12px;padding-right:12px}.order-block{grid-template-columns:1fr}.order-block code{display:block}}
+</style>
+<style>
+.map-error{height:100%;display:grid;place-items:center;text-align:center;color:var(--muted);padding:20px}.imagery-error{margin:12px 0;padding:10px 12px;border:1px solid #e2b44a;background:#fff8e5;color:#6b4b00;border-radius:6px;font-size:13px}.map-error span{font-size:12px}
+.imagery-toggle{margin-right:auto}.imagery-toggle button.active{background:#e07a22;color:#fff}.satellite-note{color:#9a5316}
+.route-marker{display:grid;place-items:center;width:28px;height:28px;border:2px solid #0c7c86;border-radius:50%;background:#fff;color:#07545b;font-size:12px;font-weight:800;box-shadow:0 2px 7px #17212b35}.route-marker.active{background:#e07a22;color:#fff;border-color:#a95112}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">SV</div><div><h1>Street View<br>trajectory explorer</h1><small>30-city production dataset</small></div></div>
+    <div class="side-label">Cities</div>
+    <nav class="city-list" id="city-list"><div class="loading">Loading cities...</div></nav>
+    <div class="side-foot">Choose a city, find a trajectory, then inspect its route and ordered image sequence.</div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div><div class="eyebrow" id="eyebrow">Production explorer</div><h2 id="city-title">Loading dataset</h2><p id="city-subtitle">Preparing trajectory index...</p></div><div class="dataset-pill" id="dataset-pill">Loading...</div></header>
+    <section class="view-controls"><div class="mode-toggle" role="group" aria-label="Display mode"><button type="button" data-mode="all">All data</button><button type="button" data-mode="evaluation">Model evaluation</button></div><div id="imagery-toggle" class="mode-toggle imagery-toggle" role="group" aria-label="Imagery"><button type="button" data-imagery="street">Street View</button><button type="button" data-imagery="satellite">Satellite</button></div><select id="eval-run" class="eval-select" hidden aria-label="Evaluation model"></select></section>
+    <section class="controls"><input id="route-search" class="search" type="search" placeholder="Search trajectory ID" autocomplete="off"><span id="route-count" class="count"></span></section>
+    <div class="route-list" id="route-list"></div>
+    <section class="panel" id="route-panel"><div class="empty">Select a city to begin.</div></section>
+  </main>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const state={meta:null,city:null,routes:[],satelliteRoutes:[],route:null,streetRoute:null,satelliteRoute:null,map:null,markers:[],frame:0,imagery:'street',imageryError:null};
+const $=id=>document.getElementById(id);
+const escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>new Intl.NumberFormat().format(n);
+const api=path=>fetch(path).then(r=>{if(!r.ok)throw new Error('Request failed');return r.json()});
+function showMapError(message){
+  const mapElement=$('map');
+  if(mapElement)mapElement.innerHTML=`<div class="map-error">${escapeHtml(message)}<br><span>Image sequence and the selected panorama link remain available.</span></div>`;
+}
+function cityFromUrl(){return new URLSearchParams(location.search).get('city')}
+function routeFromUrl(){return new URLSearchParams(location.search).get('route')}
+function setUrl(city,route){const q=new URLSearchParams({city});if(route)q.set('route',route);history.replaceState(null,'','?'+q)}
+function renderCities(){const meta=state.imagery==='satellite'?state.satelliteMeta:state.meta;$('city-list').innerHTML=meta.cities.map(city=>`<button class="city-button ${city.id===state.city?.id?'active':''}" data-city="${escapeHtml(city.id)}"><span>${escapeHtml(city.label)}</span><span>${fmt(city.complete)}</span></button>`).join('');document.querySelectorAll('[data-city]').forEach(button=>button.addEventListener('click',()=>selectCity(button.dataset.city)))}
+async function selectCity(cityId,preferredRoute){const city=state.meta.cities.find(item=>item.id===cityId)||state.meta.cities[0];const imagery=state.imagery;state.city=city;state.route=null;state.streetRoute=null;state.satelliteRoutes=[];state.satelliteRoute=null;state.imagery='street';setImageryButtons();renderCities();$('city-title').textContent=city.label;$('city-subtitle').textContent=`${fmt(city.complete)} trajectories · ${fmt(city.imageCount)} images · 8 frames per trajectory`;$('route-list').innerHTML='<div class="loading">Loading trajectories...</div>';$('route-count').textContent='';$('route-panel').innerHTML='<div class="loading">Loading trajectory index...</div>';setUrl(city.id,preferredRoute);state.routes=await api(`/api/cities/${encodeURIComponent(city.id)}/routes`);renderRouteList();const routeId=preferredRoute&&state.routes.some(row=>row.id===preferredRoute)?preferredRoute:state.routes[0]?.id;if(routeId)await selectRoute(routeId);if(imagery==='satellite')await setImagery('satellite');}
+function renderRouteList(){const query=$('route-search').value.trim().toLowerCase();const rows=state.imagery==='satellite'?state.satelliteRoutes:state.routes;const filtered=rows.filter(row=>!query||row.id.toLowerCase().includes(query));$('route-count').textContent=`${fmt(filtered.length)} of ${fmt(rows.length)}`;$('route-list').innerHTML=filtered.map(row=>`<button class="route-chip ${row.id===state.route?.id?'active':''}" data-route="${escapeHtml(row.id)}"><strong>${escapeHtml(row.id)}</strong><span>${state.imagery==='satellite'?'8 satellite frames':'8 ordered frames'}</span></button>`).join('')||'<div class="loading">No trajectory matches.</div>';document.querySelectorAll('[data-route]').forEach(button=>button.addEventListener('click',()=>selectRoute(button.dataset.route)));}
+function frameHeading(frame){return Number(frame.render_heading??frame.center_heading??frame.heading??frame.heading_deg??0)}
+function frameLat(frame){return Number(frame.lat??frame.latitude)}
+function frameLon(frame){return Number(frame.lon??frame.longitude)}
+function sequenceImageSrc(city,route,file){const prefix=state.imagery==='satellite'?'/satellite/':'/media/';return `${prefix}${encodeURIComponent(city)}/${encodeURIComponent(route)}/${encodeURIComponent(file)}`}
+function googleUrl(frame){if(frame?.pano_id)return `https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(frame.pano_id)}&heading=${encodeURIComponent(frameHeading(frame))}&pitch=0&fov=90`;return frame?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${frameLat(frame)},${frameLon(frame)}`)}`:'#'}
+function setImageryButtons(){document.querySelectorAll('[data-imagery]').forEach(button=>button.classList.toggle('active',button.dataset.imagery===state.imagery))}
+async function satelliteRoutesFor(cityId){return await api(`/api/satellite/cities/${encodeURIComponent(cityId)}/routes`)}
+async function satelliteFor(cityId,routeId){const manifest=await api(`/api/satellite/cities/${encodeURIComponent(cityId)}/routes/${encodeURIComponent(routeId)}`);return {...manifest,id:manifest.id||manifest.trajectory_id||routeId}}
+function renderImagerySummary(){
+  const evaluation=state.mode==='evaluation';
+  if(state.imagery==='satellite'){
+    const meta=state.satelliteMeta;const city=meta.cities.find(row=>row.id===(evaluation?state.evalCity:state.city?.id));
+    const images=meta.cities.reduce((total,row)=>total+row.imageCount,0);
+    $('dataset-pill').innerHTML=`<strong>${fmt(meta.total_trajectories)} trajectories</strong>${fmt(images)} images · ${escapeHtml(meta.dataset_id)}`;
+    $('city-subtitle').textContent=`${fmt(city?.complete||0)} trajectories · ${fmt(city?.imageCount||0)} images · 8 frames per trajectory`;
+    $('eyebrow').textContent='Satellite explorer';
+  }else if(evaluation){
+    $('dataset-pill').innerHTML=`<strong>${fmt(state.evalRoutes.length)} evaluated trajectories</strong>${escapeHtml(state.evalRun?.model||state.evalRun?.label||'model')}`;
+    $('city-subtitle').textContent=`${fmt(state.evalRoutes.filter(row=>row.city===state.evalCity).length)} evaluated trajectories · ${state.evalRun?.label||''}`;
+    $('eyebrow').textContent='Model evaluation';
+  }else{
+    $('dataset-pill').innerHTML=`<strong>${fmt(state.meta.total_trajectories)} trajectories</strong>${fmt(state.meta.total_images)} images · ${escapeHtml(state.meta.dataset_id)}`;
+    $('city-subtitle').textContent=`${fmt(state.city.complete)} trajectories · ${fmt(state.city.imageCount)} images · 8 frames per trajectory`;
+    $('eyebrow').textContent='Production explorer';
+  }
+  evaluation?state.renderEvalCities():renderCities();
+}
+function renderImageryView(){renderImagerySummary();if(state.mode==='evaluation'){state.renderEvalRouteList();state.renderEvaluationPanel()}else{renderRouteList();renderPanel()}}
+async function setImagery(mode){
+  const request=(state.imageryRequest||0)+1;state.imageryRequest=request;state.imagery=mode;document.body.classList.toggle('satellite-mode',mode==='satellite');state.imageryError=null;state.frame=0;state.renderedRoute=null;setImageryButtons();
+  if(mode==='street'){state.route=state.streetRoute;if(state.mode==='evaluation'&&!state.streetRoute)return state.selectEvalCity(state.evalRoutes[0]?.city);return renderImageryView()}
+  try{
+    const cityId=state.mode==='evaluation'?state.evalCity:state.city.id;
+    const meta=state.satelliteMeta||await api('/api/satellite/meta');const routes=await satelliteRoutesFor(cityId);
+    const routeId=state.satelliteRoute?.id&&routes.some(row=>row.id===state.satelliteRoute.id)?state.satelliteRoute.id:routes[0]?.id;
+    if(!routeId)throw new Error('No satellite trajectories found for this city');
+    const manifest=await satelliteFor(cityId,routeId);if(state.imageryRequest!==request)return;
+    state.satelliteMeta=meta;state.satelliteRoutes=routes;state.satelliteRoute=manifest;state.route=manifest;renderImageryView();
+  }catch(error){if(state.imageryRequest!==request)return;state.imagery='street';state.imageryError=`Satellite imagery is unavailable: ${error.message}`;setImageryButtons();state.route=state.streetRoute;renderImageryView()}
+}
+function renderPanel(){const route=state.route;if(!route){$('route-panel').innerHTML='<div class="empty">No trajectory selected.</div>';return}const frames=route.frames||[];const selected=frames[state.frame]||frames[0];$('route-list').querySelectorAll('.route-chip').forEach(button=>button.classList.toggle('active',button.dataset.route===route.id));$('route-panel').innerHTML=`<div class="route-heading"><div><h3>${escapeHtml(route.name||route.id)}</h3><p>${escapeHtml(route.id)} · ${frames.length} frames · ${escapeHtml(route.rendering?.image_source||route.image_source||'production image sequence')}</p></div><div class="route-actions"><a class="outline" href="${googleUrl(selected)}" target="_blank" rel="noopener">${state.imagery==='satellite'?'Open map':'Open selected pano'}</a></div></div><div id="map"></div>${state.imageryError?`<div class="imagery-error" role="status">${escapeHtml(state.imageryError)}</div>`:''}<div class="map-note">Route line follows the 8 coordinates. Click a marker to focus its image.</div><div class="frames-head"><h4>${state.imagery==='satellite'?'Satellite image sequence':'Ordered image sequence'}</h4><span>Frame ${String(state.frame).padStart(2,'0')} of ${String(frames.length-1).padStart(2,'0')}</span></div><section class="sequence">${frames.map((frame,index)=>`<figure class="frame ${index===state.frame?'active':''}" data-frame="${index}"><img src="${sequenceImageSrc(state.city.id,route.id,frame.file)}" alt="${escapeHtml(route.id)} frame ${index}" loading="lazy"><figcaption><strong>frame_${String(index).padStart(2,'0')}</strong><span>${frameHeading(frame).toFixed(1)}°</span></figcaption></figure>`).join('')}</section><div class="detail"><img src="${sequenceImageSrc(state.city.id,route.id,selected.file)}" alt="Selected frame ${state.frame}"><div class="detail-side"><strong>Selected frame ${String(state.frame).padStart(2,'0')}</strong><div>Use ← → to move through this trajectory.</div><dl class="metadata"><dt>Latitude</dt><dd>${frameLat(selected).toFixed(6)}</dd><dt>Longitude</dt><dd>${frameLon(selected).toFixed(6)}</dd><dt>Heading</dt><dd>${frameHeading(selected).toFixed(1)}°</dd><dt>${state.imagery==='satellite'?'Extent':'Pano date'}</dt><dd>${state.imagery==='satellite'?`${Number(selected.extent_m||0).toFixed(1)} m`:escapeHtml(selected.date||'—')}</dd><dt>${state.imagery==='satellite'?'Source':'Pano ID'}</dt><dd>${state.imagery==='satellite'?'Google satellite':escapeHtml(selected.pano_id||'—')}</dd></dl></div></div>`;document.querySelectorAll('[data-frame]').forEach(frame=>frame.addEventListener('click',()=>{state.frame=Number(frame.dataset.frame);renderPanel()}));renderMap()}
+function markerIcon(index,active){
+  return L.divIcon({className:'',html:`<span class="route-marker${active?' active':''}">${index+1}</span>`,iconSize:[28,28],iconAnchor:[14,14]});
+}
+function renderMap(){
+  const frames=state.route.frames||[];
+  if(typeof L==='undefined'){showMapError('Map library could not be loaded.');return}
+  const points=frames.map(frame=>[frameLat(frame),frameLon(frame)]);
+  const map=L.map('map',{scrollWheelZoom:false});
+  state.map=map;
+  state.markers=[];
+  L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{maxZoom:20,attribution:'&copy; Google'}).addTo(map);
+  L.polyline(points,{color:'#0c7c86',opacity:.95,weight:5}).addTo(map);
+  points.forEach((point,index)=>{
+    const marker=L.marker(point,{icon:markerIcon(index,index===state.frame),title:`frame_${String(index).padStart(2,'0')}`,zIndexOffset:10+index}).addTo(map);
+    marker.on('click',()=>{state.frame=index;renderPanel()});
+    state.markers.push(marker);
+  });
+  if(points.length)map.fitBounds(L.latLngBounds(points),{padding:[48,48],maxZoom:19});
+  else map.setView([0,0],2);
+}
+function updateFrame(){
+  const frame=state.route.frames[state.frame];
+  if(!frame)return;
+  document.querySelectorAll('.frame').forEach((element,index)=>element.classList.toggle('active',index===state.frame));
+  $('route-panel').querySelector('.route-actions a').href=googleUrl(frame);
+  $('route-panel').querySelector('.frames-head span').textContent=`Frame ${String(state.frame).padStart(2,'0')} of ${String(state.route.frames.length-1).padStart(2,'0')}`;
+  const detail=$('route-panel').querySelector('.detail');
+  const image=detail.querySelector('img');
+  image.src=sequenceImageSrc(state.city.id,state.route.id,frame.file);
+  image.alt=`Selected frame ${state.frame}`;
+  detail.querySelector('.detail-side strong').textContent=`Selected frame ${String(state.frame).padStart(2,'0')}`;
+  const values=[frameLat(frame).toFixed(6),frameLon(frame).toFixed(6),`${frameHeading(frame).toFixed(1)}°`,state.imagery==='satellite'?`${Number(frame.extent_m||0).toFixed(1)} m`:frame.date||'—',state.imagery==='satellite'?'Google satellite':frame.pano_id||'—'];
+  detail.querySelectorAll('.metadata dd').forEach((element,index)=>element.textContent=values[index]);
+  state.markers.forEach((marker,index)=>{
+    marker.setIcon(markerIcon(index,index===state.frame));
+  });
+}
+const renderPanelForRoute=renderPanel;
+renderPanel=function(){
+  if(state.renderedRoute===state.route && $('map')){updateFrame();return}
+  if(state.map){state.map.remove();state.map=null;state.markers=[]}
+  state.renderedRoute=state.route;
+  renderPanelForRoute();
+};
+async function selectRoute(routeId){state.frame=0;state.imageryError=null;if(state.imagery==='satellite'){state.satelliteRoute=await satelliteFor(state.city.id,routeId);state.route=state.satelliteRoute;state.renderedRoute=null;renderRouteList();renderPanel();return}state.streetRoute=await api(`/api/cities/${encodeURIComponent(state.city.id)}/routes/${encodeURIComponent(routeId)}`);state.route=state.streetRoute;state.renderedRoute=null;setUrl(state.city.id,routeId);renderRouteList();renderPanel()}
+$('route-search').addEventListener('input',renderRouteList);document.addEventListener('keydown',event=>{if(state.mode==='evaluation'||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)||!state.route)return;if(event.key==='ArrowRight'){state.frame=Math.min(state.frame+1,state.route.frames.length-1);renderPanel()}if(event.key==='ArrowLeft'){state.frame=Math.max(state.frame-1,0);renderPanel()}});window.addEventListener('popstate',()=>{if(state.mode==='evaluation')return;const city=cityFromUrl();if(city)selectCity(city,routeFromUrl())});
+api('/api/meta').then(meta=>{state.meta=meta;if(state.mode==='evaluation')return;$('dataset-pill').innerHTML=`<strong>${fmt(meta.total_trajectories)} trajectories</strong>${fmt(meta.total_images)} images · ${meta.dataset_id}`;const initial=cityFromUrl()||meta.cities[0].id;selectCity(initial,routeFromUrl())}).catch(error=>{if(state.mode!=='evaluation')$('route-panel').innerHTML=`<div class="empty">Unable to load the dataset index.<br>${escapeHtml(error.message)}</div>`});
+document.querySelectorAll('[data-imagery]').forEach(button=>button.addEventListener('click',()=>setImagery(button.dataset.imagery)));setImageryButtons();
+</script>
+<script>
+(function(){
+  state.mode='all';
+  state.evalRuns=[];state.evalRun=null;state.evalRoutes=[];state.evalCity=null;state.evalRecord=null;
+  const params=new URLSearchParams(location.search);
+  const initialMode=params.get('mode')==='evaluation'?'evaluation':'all';
+  const labelForCity=id=>{const row=(state.meta?.cities||[]).find(city=>city.id===id);return row?.label||String(id||'').replaceAll('_',' ')};
+  const evalUrl=(city,route)=>{const query=new URLSearchParams({mode:'evaluation'});if(state.evalRun)query.set('eval',state.evalRun.id);if(city)query.set('city',city);if(route)query.set('route',route);return '?'+query};
+  const setEvalUrl=(city,route)=>history.replaceState(null,'',evalUrl(city,route));
+  const metricPercent=value=>value==null?'—':`${(Number(value)*100).toFixed(1)}%`;
+  const metricNumber=value=>value==null?'—':Number(value).toFixed(3);
+  const orderText=value=>Array.isArray(value)?value.map(index=>`Image ${index}`).join(' → '):'—';
+  const imageSrc=(city,route,file)=>sequenceImageSrc(city,route,file);
+
+  function setModeButtons(){document.querySelectorAll('[data-mode]').forEach(button=>button.classList.toggle('active',button.dataset.mode===state.mode));$('eval-run').hidden=state.mode!=='evaluation';}
+  function renderEvalCities(){
+    const counts={};if(state.imagery==='satellite'){state.satelliteMeta.cities.forEach(row=>{counts[row.id]=row.complete})}else{state.evalRoutes.forEach(row=>{counts[row.city]=(counts[row.city]||0)+1})}
+    const cities=Object.keys(counts).sort((a,b)=>labelForCity(a).localeCompare(labelForCity(b)));
+    if(!state.evalCity||!cities.includes(state.evalCity))state.evalCity=cities[0]||null;
+    $('city-list').innerHTML=cities.map(city=>`<button class="city-button ${city===state.evalCity?'active':''}" data-eval-city="${escapeHtml(city)}"><span>${escapeHtml(labelForCity(city))}</span><span>${fmt(counts[city])}</span></button>`).join('')||'<div class="loading">No evaluated cities.</div>';
+    document.querySelectorAll('[data-eval-city]').forEach(button=>button.addEventListener('click',()=>selectEvalCity(button.dataset.evalCity)));
+  }
+  function renderEvalRouteList(){
+    const query=$('route-search').value.trim().toLowerCase();
+    if(state.imagery==='satellite'){const rows=state.satelliteRoutes.filter(row=>!query||row.id.toLowerCase().includes(query));$('route-count').textContent=`${fmt(rows.length)} satellite trajectories`;$('route-list').innerHTML=rows.map(row=>`<button class="route-chip ${row.id===state.route?.id?'active':''}" data-satellite-route="${escapeHtml(row.id)}"><strong>${escapeHtml(row.id)}</strong><span>8 satellite frames</span></button>`).join('')||'<div class="loading">No satellite trajectories match.</div>';document.querySelectorAll('[data-satellite-route]').forEach(button=>button.addEventListener('click',()=>selectEvalSatelliteRoute(button.dataset.satelliteRoute)));return}
+    const rows=state.evalRoutes.filter(row=>row.city===state.evalCity&&(!query||row.id.toLowerCase().includes(query)));
+    $('route-count').textContent=`${fmt(rows.length)} of ${fmt(state.evalRoutes.filter(row=>row.city===state.evalCity).length)}`;
+    $('route-list').innerHTML=rows.map(row=>`<button class="route-chip ${row.id===state.route?.id?'active':''}" data-eval-route="${escapeHtml(row.id)}"><strong>${escapeHtml(row.id)}</strong><span>${row.exact_match?'Exact match':'Model mismatch'} · 8 images</span></button>`).join('')||'<div class="loading">No evaluated trajectory matches.</div>';
+    document.querySelectorAll('[data-eval-route]').forEach(button=>button.addEventListener('click',()=>selectEvalRoute(button.dataset.evalRoute)));
+  }
+  function normaliseEvalRecord(record){
+    const originalFrames=record.frames||[];
+    return (record.images||[]).map(image=>{const originalIndex=Number(image.original_index);return {...(originalFrames[originalIndex]||{}),file:image.file,presented_index:Number(image.presented_index),original_index:originalIndex}}).sort((a,b)=>a.original_index-b.original_index);
+  }
+  function evalGoogleUrl(frame){return googleUrl(frame)}
+  function markerIconEval(presented,active){return L.divIcon({className:'',html:`<span class="route-marker${active?' active':''}">${presented}</span>`,iconSize:[28,28],iconAnchor:[14,14]})}
+  function renderEvalMap(frames){
+    if(typeof L==='undefined'){showMapError('Map library could not be loaded.');return}
+    const ordered=frames.slice().sort((a,b)=>a.original_index-b.original_index);const points=ordered.map(frame=>[frameLat(frame),frameLon(frame)]);const map=L.map('map',{scrollWheelZoom:false});state.map=map;state.markers=[];
+    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{maxZoom:20,attribution:'&copy; Google'}).addTo(map);
+    L.polyline(points,{color:'#0c7c86',opacity:.95,weight:5}).addTo(map);
+    ordered.forEach(frame=>{const frameIndex=frames.indexOf(frame);const marker=L.marker([Number(frame.lat),Number(frame.lon)],{icon:markerIconEval(frame.presented_index,frameIndex===state.frame),title:`Image ${frame.presented_index}`,zIndexOffset:10+frame.presented_index}).addTo(map);marker.on('click',()=>{state.frame=frameIndex;renderEvaluationPanel()});state.markers.push(marker)});
+    if(points.length)map.fitBounds(L.latLngBounds(points),{padding:[48,48],maxZoom:19});else map.setView([0,0],2);
+  }
+  function renderSatelliteEvaluationPanel(){
+    const route=state.satelliteRoute;if(!route){$('route-panel').innerHTML='<div class="empty">No satellite trajectory selected.</div>';return}const frames=route.frames||[];const selected=frames[state.frame]||frames[0];if(state.map){state.map.remove();state.map=null;state.markers=[]}$('route-list').querySelectorAll('.route-chip').forEach(button=>button.classList.toggle('active',button.dataset.satelliteRoute===route.id));$('route-panel').innerHTML=`<div class="route-heading"><div><h3>${escapeHtml(route.name||route.id)}</h3><p>${escapeHtml(labelForCity(state.evalCity))} · independent satellite trajectory · ${frames.length} frames</p></div><div class="route-actions"><a class="outline" href="${googleUrl(selected)}" target="_blank" rel="noopener">Open map</a></div></div><div id="map"></div><div class="map-note">Satellite trajectory shown independently of the evaluation route.</div><div class="frames-head"><h4>Satellite image sequence</h4><span>Frame ${String(state.frame).padStart(2,'0')} of ${String(frames.length-1).padStart(2,'0')}</span></div><section class="sequence">${frames.map((frame,index)=>`<figure class="frame ${index===state.frame?'active':''}" data-satellite-frame="${index}"><img src="${imageSrc(state.evalCity,route.id,frame.file)}" alt="${escapeHtml(route.id)} frame ${index}" loading="lazy"><figcaption><strong>frame_${String(index).padStart(2,'0')}</strong><span>Google satellite</span></figcaption></figure>`).join('')}</section><div class="detail"><img src="${imageSrc(state.evalCity,route.id,selected.file)}" alt="Selected satellite frame ${state.frame}"><div class="detail-side"><strong>Selected frame ${String(state.frame).padStart(2,'0')}</strong><dl class="metadata"><dt>Latitude</dt><dd>${frameLat(selected).toFixed(6)}</dd><dt>Longitude</dt><dd>${frameLon(selected).toFixed(6)}</dd><dt>Extent</dt><dd>${Number(selected.extent_m||0).toFixed(1)} m</dd><dt>Source</dt><dd>Google satellite</dd></dl></div></div>`;document.querySelectorAll('[data-satellite-frame]').forEach(frame=>frame.addEventListener('click',()=>{state.frame=Number(frame.dataset.satelliteFrame);renderEvaluationPanel()}));renderEvalMap(frames.map((frame,index)=>({...frame,original_index:index,presented_index:index})));
+  }
+  function renderEvaluationPanel(){
+    if(state.imagery==='satellite'){renderSatelliteEvaluationPanel();return}
+    const record=state.evalRecord;if(!record){$('route-panel').innerHTML='<div class="empty">Select an evaluated trajectory to begin.</div>';return}
+    const frames=state.route.frames||[];const selected=frames[state.frame]||frames[0];const exact=record.exact_match?'Exact match':'Mismatch';
+    if(state.map){state.map.remove();state.map=null;state.markers=[]}
+    $('route-list').querySelectorAll('.route-chip').forEach(button=>button.classList.toggle('active',button.dataset.evalRoute===record.id));
+    $('route-panel').innerHTML=`<div class="route-heading"><div><h3>${escapeHtml(record.id)}</h3><p>${escapeHtml(labelForCity(record.city))} · ${escapeHtml(record.model_label||'model evaluation')} · displayed in original trajectory order</p></div><div class="route-actions"><a class="outline" href="${evalGoogleUrl(selected)}" target="_blank" rel="noopener">${state.imagery==='satellite'?'Open map':'Open selected pano'}</a></div></div><div class="metrics"><div class="metric"><strong>${exact}</strong><span>Exact match</span></div><div class="metric"><strong>${metricNumber(record.kendall_tau)}</strong><span>Kendall tau</span></div><div class="metric"><strong>${metricPercent(record.position_accuracy)}</strong><span>Position accuracy</span></div><div class="metric"><strong>${metricPercent(record.pairwise_accuracy)}</strong><span>Pairwise accuracy</span></div></div><div class="order-block"><strong>Ground truth</strong><code>${escapeHtml(orderText(record.ground_truth_presented_indices))}</code><strong>Model prediction</strong><code>${escapeHtml(orderText(record.prediction))}</code></div><div id="map"></div>${state.imageryError?`<div class="imagery-error" role="status">${escapeHtml(state.imageryError)}</div>`:''}<div class="map-note">The line and image sequence follow the original trajectory. Marker labels are model input Image IDs.</div><div class="frames-head"><h4>${state.imagery==='satellite'?'Satellite image sequence':'Evaluation image sequence'}</h4><span>Original ${selected.original_index} of ${frames.length-1}</span></div><section class="sequence">${frames.map((frame,index)=>`<figure class="frame ${index===state.frame?'active':''}" data-eval-frame="${index}"><img src="${imageSrc(record.city,record.id,frame.file)}" alt="Image ${frame.presented_index}, original frame ${frame.original_index}" loading="lazy"><figcaption><strong>Image ${frame.presented_index}</strong><span>Original ${frame.original_index}</span></figcaption></figure>`).join('')}</section><div class="detail"><img src="${imageSrc(record.city,record.id,selected.file)}" alt="Selected image ${selected.presented_index}, original frame ${selected.original_index}"><div class="detail-side"><strong>Image ${selected.presented_index}</strong><div>Use ← → to move through the original sequence.</div><dl class="metadata"><dt>Original frame</dt><dd>${selected.original_index}</dd><dt>Latitude</dt><dd>${frameLat(selected).toFixed(6)}</dd><dt>Longitude</dt><dd>${frameLon(selected).toFixed(6)}</dd><dt>Heading</dt><dd>${frameHeading(selected).toFixed(1)}°</dd><dt>${state.imagery==='satellite'?'Extent':'Pano date'}</dt><dd>${state.imagery==='satellite'?`${Number(selected.extent_m||0).toFixed(1)} m`:escapeHtml(selected.date||'—')}</dd><dt>${state.imagery==='satellite'?'Source':'Pano ID'}</dt><dd>${state.imagery==='satellite'?'Google satellite':escapeHtml(selected.pano_id||'—')}</dd></dl></div></div><div class="model-output"><h4>Model output</h4><pre>${escapeHtml(record.content||'No answer text recorded.')}</pre>${record.reasoning_content?`<details><summary>Show reasoning content</summary><pre>${escapeHtml(record.reasoning_content)}</pre></details>`:''}</div>`;
+    document.querySelectorAll('[data-eval-frame]').forEach(frame=>frame.addEventListener('click',()=>{state.frame=Number(frame.dataset.evalFrame);renderEvaluationPanel()}));renderEvalMap(frames);
+  }
+  async function selectEvalRoute(routeId){
+    if(!state.evalRun)return;state.frame=0;state.evalRecord=await api(`/api/evaluations/${encodeURIComponent(state.evalRun.id)}/routes/${encodeURIComponent(routeId)}`);state.streetRoute={id:state.evalRecord.id,frames:normaliseEvalRecord(state.evalRecord)};state.route=state.streetRoute;state.satelliteRoute=null;setEvalUrl(state.evalCity,routeId);renderEvalRouteList();renderEvaluationPanel();
+  }
+  async function selectEvalSatelliteRoute(routeId){state.frame=0;state.satelliteRoute=await satelliteFor(state.evalCity,routeId);state.route=state.satelliteRoute;renderEvalRouteList();renderEvaluationPanel()}
+  async function selectEvalCity(cityId,preferredRoute){
+    const imagery=state.imagery;state.evalCity=cityId;state.evalRecord=null;state.route=null;state.streetRoute=null;state.satelliteRoute=null;state.satelliteRoutes=[];state.frame=0;state.imagery='street';setImageryButtons();if(imagery!=='satellite')renderEvalCities();renderEvalRouteList();$('city-title').textContent=labelForCity(cityId);$('city-subtitle').textContent=`${fmt(state.evalRoutes.filter(row=>row.city===cityId).length)} evaluated trajectories · ${state.evalRun?.label||''}`;const routeId=preferredRoute&&state.evalRoutes.some(row=>row.city===cityId&&row.id===preferredRoute)?preferredRoute:state.evalRoutes.find(row=>row.city===cityId)?.id;if(routeId)await selectEvalRoute(routeId);else $('route-panel').innerHTML='<div class="empty">No evaluated trajectory selected.</div>';if(imagery==='satellite')await setImagery('satellite');else renderImagerySummary();}
+  async function loadEvaluationRun(runId,preferredCity,preferredRoute){
+    const summary=await api(`/api/evaluations/${encodeURIComponent(runId)}/routes`);state.evalRun=summary;state.evalRoutes=summary.routes||[];const city=preferredCity&&state.evalRoutes.some(row=>row.city===preferredCity)?preferredCity:null;$('dataset-pill').innerHTML=`<strong>${fmt(state.evalRoutes.length)} evaluated trajectories</strong>${escapeHtml(summary.model||summary.label||'model')}`;$('eyebrow').textContent='Model evaluation';renderEvalCities();await selectEvalCity(city||state.evalRoutes[0]?.city,preferredRoute);
+  }
+  async function enterEvaluation(){
+    state.mode='evaluation';if(state.map){state.map.remove();state.map=null;state.markers=[]}setModeButtons();$('city-list').innerHTML='<div class="loading">Loading evaluated cities...</div>';$('route-list').innerHTML='<div class="loading">Loading evaluated trajectories...</div>';$('route-panel').innerHTML='<div class="loading">Loading evaluation data...</div>';$('route-search').value='';
+    try{const result=await api('/api/evaluations');state.evalRuns=result.runs||[];$('eval-run').innerHTML=state.evalRuns.map(run=>`<option value="${escapeHtml(run.id)}">${escapeHtml(run.label)} · ${fmt(run.total)} routes</option>`).join('');const requested=params.get('eval');const run=state.evalRuns.find(item=>item.id===requested)||state.evalRuns[0];if(!run)throw new Error('No evaluation runs found');$('eval-run').value=run.id;await loadEvaluationRun(run.id,params.get('city'),params.get('route'));}catch(error){$('route-panel').innerHTML=`<div class="empty">Unable to load evaluation data.<br>${escapeHtml(error.message)}</div>`}
+  }
+  async function enterAll(){
+    state.mode='all';state.evalRecord=null;state.route=null;state.evalRun=null;setModeButtons();$('eyebrow').textContent='Production explorer';if(state.map){state.map.remove();state.map=null}if(!state.meta)state.meta=await api('/api/meta');$('dataset-pill').innerHTML=`<strong>${fmt(state.meta.total_trajectories)} trajectories</strong>${fmt(state.meta.total_images)} images · ${state.meta.dataset_id}`;const city=cityFromUrl()||state.meta.cities[0].id;await selectCity(city,routeFromUrl())
+  }
+  document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{if(button.dataset.mode==='evaluation')enterEvaluation();else enterAll()}));
+  $('eval-run').addEventListener('change',()=>loadEvaluationRun($('eval-run').value,state.evalCity,null));
+  $('route-search').addEventListener('input',()=>{if(state.mode==='evaluation')renderEvalRouteList()});
+  document.addEventListener('keydown',event=>{if(state.mode!=='evaluation'||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)||!state.route)return;const step=event.key==='ArrowRight'?1:event.key==='ArrowLeft'?-1:0;if(!step)return;event.preventDefault();const next=Math.max(0,Math.min(state.frame+step,state.route.frames.length-1));if(next!==state.frame){state.frame=next;renderEvaluationPanel()}});
+  state.renderEvalCities=renderEvalCities;state.renderEvalRouteList=renderEvalRouteList;state.renderEvaluationPanel=renderEvaluationPanel;state.selectEvalCity=selectEvalCity;
+  setModeButtons();if(initialMode==='evaluation')enterEvaluation();
+})();
+</script>
+</body>
+</html>

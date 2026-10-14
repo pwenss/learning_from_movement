@@ -1,0 +1,158 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="output">loading</pre>
+<script>
+(() => {
+  const output = document.getElementById("output");
+  const routes = __TRAJECTORY_ROUTES_JSON__;
+  const maxStarts = __ALTERNATIVE_START_LIMIT__;
+  const maxRandomAttempts = __MAX_RANDOM_ATTEMPTS__;
+  const randomSeed = __RANDOM_SEED_JSON__;
+  const key = decodeURIComponent(location.hash.slice(1));
+  const getPanorama = (service, request) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("getPanorama timeout")), 6000);
+    service.getPanorama(request, (data, status) => { clearTimeout(timer); status === "OK" && data ? resolve(data) : reject(new Error(status)); });
+  });
+  function hashSeed(value) {
+    let hash = 2166136261;
+    for (let i = 0; i < value.length; i += 1) {
+      hash ^= value.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+  function seededRandom(seed) {
+    let state = seed >>> 0;
+    return () => {
+      state += 0x6D2B79F5;
+      let value = state;
+      value = Math.imul(value ^ value >>> 15, value | 1);
+      value ^= value + Math.imul(value ^ value >>> 7, value | 61);
+      return ((value ^ value >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function randomPoint(bounds, random) {
+    const [south, north, west, east] = bounds;
+    const sinLat = Math.sin(south * Math.PI / 180) + random() * (
+      Math.sin(north * Math.PI / 180) - Math.sin(south * Math.PI / 180)
+    );
+    const lat = Math.asin(sinLat) * 180 / Math.PI;
+    const span = east >= west ? east - west : east + 360 - west;
+    const lon = ((west + random() * span + 540) % 360) - 180;
+    return { lat, lng: lon };
+  }
+  function pointInRing(lon, lat, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+      const [xi, yi] = ring[i];
+      const [xj, yj] = ring[j];
+      const crosses = (yi > lat) !== (yj > lat)
+        && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+      if (crosses) inside = !inside;
+    }
+    return inside;
+  }
+  function pointInPolygon(lon, lat, rings) {
+    return pointInRing(lon, lat, rings[0])
+      && !rings.slice(1).some((hole) => pointInRing(lon, lat, hole));
+  }
+  function sizeOf(value) {
+    if (!value) return null;
+    const width = Number(value.width);
+    const height = Number(value.height);
+    return Number.isFinite(width) && Number.isFinite(height) ? { width, height } : null;
+  }
+  function polygonWeight(rings) {
+    const ring = rings[0];
+    let area = 0;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+      area += ring[j][0] * Math.sin(ring[i][1] * Math.PI / 180)
+        - ring[i][0] * Math.sin(ring[j][1] * Math.PI / 180);
+    }
+    return Math.max(Math.abs(area), Number.EPSILON);
+  }
+  function randomPointInCity(route, random) {
+    const polygons = route.city_boundary.type === "Polygon"
+      ? [route.city_boundary.coordinates]
+      : route.city_boundary.coordinates;
+    const weighted = polygons.map((rings) => ({ rings, weight: polygonWeight(rings) }));
+    const total = weighted.reduce((sum, item) => sum + item.weight, 0);
+    let target = random() * total;
+    let selected = weighted[weighted.length - 1].rings;
+    for (const item of weighted) {
+      target -= item.weight;
+      if (target <= 0) { selected = item.rings; break; }
+    }
+    const outer = selected[0];
+    const lats = outer.map((point) => point[1]);
+    const lons = outer.map((point) => point[0]);
+    const bounds = [Math.min(...lats), Math.max(...lats), Math.min(...lons), Math.max(...lons)];
+    for (let attempt = 0; attempt < 10000; attempt += 1) {
+      const point = randomPoint(bounds, random);
+      if (pointInPolygon(point.lng, point.lat, selected)) return point;
+    }
+    throw new Error(`Unable to sample a point inside ${route.name}`);
+  }
+  async function run() {
+    const service = new google.maps.StreetViewService();
+    const result = [];
+    for (const route of routes) {
+      const starts = [];
+      const seen = new Set([route.original_start_pano]);
+      let attempts = 0;
+      try {
+        if (!route.city_boundary || !route.city_bounds) throw new Error(`No city boundary for ${route.name}`);
+        const random = seededRandom(hashSeed(`${randomSeed}:${route.id}`));
+        while (starts.length < maxStarts && attempts < maxRandomAttempts) {
+          attempts += 1;
+          const sample = randomPointInCity(route, random);
+          try {
+            const data = await getPanorama(service, { location: sample });
+            const pano = data.location.pano;
+            if (!pano || pano.startsWith("CAoS")) continue;
+            const links = (data.links || []).filter((link) => link && link.pano).map((link) => ({ pano_id: link.pano, heading: Number(link.heading), description: link.description || null }));
+            if (seen.has(pano)) continue;
+            const panoLat = data.location.latLng.lat();
+            const panoLon = data.location.latLng.lng();
+            seen.add(pano);
+            starts.push({
+              pano_id: pano,
+              lat: panoLat,
+              lon: panoLon,
+              date: data.imageDate || null,
+              source_pano_heading: Number(data.tiles?.centerHeading),
+              source_pano_world_size: sizeOf(data.tiles?.worldSize),
+              source_pano_tile_size: sizeOf(data.tiles?.tileSize),
+              links,
+              random_sample: sample,
+            });
+          } catch (_) {}
+        }
+        result.push({
+          id: route.id,
+          name: route.name,
+          original_start_pano: route.original_start_pano,
+          city_boundary: route.city_boundary_metadata,
+          random_attempts: attempts,
+          starts,
+        });
+      } catch (error) {
+        result.push({ id: route.id, name: route.name, original_start_pano: route.original_start_pano, random_attempts: attempts, starts, error: String(error) });
+      }
+    }
+    output.textContent = JSON.stringify({
+      sampling: {
+        method: "uniform random query points inside the city administrative boundary; nearest panorama returned by Google Maps JavaScript without an explicit radius or source filter",
+        boundary_source: "OpenStreetMap Nominatim",
+        random_seed: randomSeed,
+        max_attempts_per_route: maxRandomAttempts,
+      },
+      routes: result,
+    }, null, 2);
+  }
+  window.onMapsLoaded = () => run().catch((error) => { output.textContent = JSON.stringify({ error: String(error) }); });
+  const script = document.createElement("script");
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&callback=onMapsLoaded`;
+  script.async = true; script.defer = true; document.head.appendChild(script);
+})();
+</script>

@@ -1,0 +1,285 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Street View navigation extractor</title>
+<pre id="output">loading</pre>
+<script>
+(() => {
+  const output = document.getElementById("output");
+  const routeSeeds = __TRAJECTORY_ROUTES_JSON__;
+  const routes = routeSeeds;
+  const frameCount = 8;
+  const minSegmentDistanceMeters = 1;
+  const maxSegmentDistanceMeters = 30;
+  const targetRouteCount = routeSeeds.length;
+  const key = decodeURIComponent(location.hash.slice(1));
+
+  function fail(message) {
+    output.textContent = JSON.stringify({ error: String(message) });
+  }
+
+  function getPanorama(service, request) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("getPanorama timeout")), 5000);
+      service.getPanorama(request, (data, status) => {
+        clearTimeout(timer);
+        if (status === "OK" && data) resolve(data);
+        else reject(new Error(`getPanorama failed: ${status}`));
+      });
+    });
+  }
+
+  function locationOf(data) {
+    return {
+      lat: data.location.latLng.lat(),
+      lon: data.location.latLng.lng(),
+    };
+  }
+
+  function sizeOf(value) {
+    if (!value) return null;
+    const width = Number(value.width);
+    const height = Number(value.height);
+    return Number.isFinite(width) && Number.isFinite(height) ? { width, height } : null;
+  }
+
+  function tileMetadata(data) {
+    return {
+      source_pano_heading: Number(data.tiles?.centerHeading),
+      source_pano_world_size: sizeOf(data.tiles?.worldSize),
+      source_pano_tile_size: sizeOf(data.tiles?.tileSize),
+    };
+  }
+
+  function dateParts(value) {
+    const match = /^(\d{4})(?:-(\d{2}))?$/.exec(value || "");
+    return match ? { year: Number(match[1]), month: match[2] ? Number(match[2]) : null } : null;
+  }
+
+  function headingTurn(previous, next) {
+    if (previous == null || next == null) return 0;
+    const delta = Math.abs(Number(next) - Number(previous)) % 360;
+    return Math.min(delta, 360 - delta);
+  }
+
+  function geodesicDistanceMeters(first, second) {
+    if (!first?.location?.latLng || !second?.location?.latLng) return null;
+    const lat1 = Number(first.location.latLng.lat()) * Math.PI / 180;
+    const lat2 = Number(second.location.latLng.lat()) * Math.PI / 180;
+    const dLat = lat2 - lat1;
+    const dLon = (Number(second.location.latLng.lng()) - Number(first.location.latLng.lng())) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return 6371000 * 2 * Math.asin(Math.sqrt(a));
+  }
+
+  function summarizeLinks(links) {
+    return (links || []).filter((link) => link && link.pano).map((link) => ({
+      pano_id: link.pano,
+      heading: Number(link.heading),
+      description: link.description || null,
+    }));
+  }
+
+  function dateCompatible(selectedDates, candidateDate) {
+    const dates = [...selectedDates, candidateDate].map(dateParts);
+    if (dates.some((date) => !date)) return false;
+    const monthDates = dates.filter((date) => date.month != null);
+    if (monthDates.length === dates.length) {
+      return monthDates.every((date) => date.year === monthDates[0].year && date.month === monthDates[0].month);
+    }
+    return dates.every((date) => date.year === dates[0].year);
+  }
+
+  async function walk(service, routeId, initialOverride, globalUsedPanos) {
+    const diagnostics = {
+      max_frames_reached: 0,
+      rejection_counts: { global_pano_conflict: 0, repeated_pano: 0, heading_turn: 0, date_mismatch: 0, distance: 0, fetch_error: 0, dead_end: 0 },
+      rejection_counts_by_frame: {},
+      initial_override_found: null,
+    };
+    const reject = (frame, reason) => {
+      diagnostics.rejection_counts[reason] += 1;
+      const key = String(frame);
+      diagnostics.rejection_counts_by_frame[key] ||= { global_pano_conflict: 0, repeated_pano: 0, heading_turn: 0, date_mismatch: 0, distance: 0, fetch_error: 0, dead_end: 0 };
+      diagnostics.rejection_counts_by_frame[key][reason] += 1;
+    };
+    let current;
+    try {
+      const forcedStart = initialOverride?.start_pano;
+      if (!forcedStart) throw new Error(`Missing LLM-selected start pano for ${routeId}`);
+      if (globalUsedPanos.has(forcedStart)) {
+        reject(0, "global_pano_conflict");
+        return { start_pano: forcedStart, frames: [], diagnostics, initial_override: initialOverride };
+      }
+      current = await getPanorama(service, { pano: forcedStart });
+    } catch (_) { reject(0, "fetch_error"); return { frames: [], diagnostics, initial_override: initialOverride }; }
+    const startPano = current.location && current.location.pano;
+    const startLinks = (current.links || []).length;
+    const startCandidateLinks = summarizeLinks(current.links);
+    const startDate = current.imageDate || null;
+    const search = async (node, frames, visited, selectedDates, previousHeading, incomingDistance) => {
+      // Also check the resolved ID, including the terminal panorama.
+      if (globalUsedPanos.has(node.location.pano)) {
+        reject(frames.length, "global_pano_conflict");
+        return null;
+      }
+      diagnostics.max_frames_reached = Math.max(diagnostics.max_frames_reached, frames.length);
+      const rawLinks = (node.links || []).filter((link) => link && link.pano);
+      if (frames.length === frameCount - 1) {
+        const loc = locationOf(node);
+        return [...frames, {
+          frame: frames.length,
+          file: `frame_${String(frames.length).padStart(2, "0")}.jpg`,
+          pano_id: node.location.pano,
+          lat: loc.lat,
+          lon: loc.lon,
+          heading: Number(previousHeading),
+          next_pano_id: null,
+          next_in_sequence: false,
+          next_description: null,
+          date: node.imageDate || null,
+          ...tileMetadata(node),
+          heading_source: "repeated previous saved-frame heading",
+          heading_turn_from_previous: 0,
+          distance_from_previous_m: incomingDistance,
+          candidate_links: summarizeLinks(rawLinks),
+        }];
+      }
+      for (const link of rawLinks) {
+        if (globalUsedPanos.has(link.pano)) reject(frames.length, "global_pano_conflict");
+        else if (visited.has(link.pano)) reject(frames.length, "repeated_pano");
+        else if (headingTurn(previousHeading, link.heading) > 90) reject(frames.length, "heading_turn");
+      }
+      const linkData = [];
+      for (const link of rawLinks) {
+        if (globalUsedPanos.has(link.pano)) continue;
+        try {
+          const linkedPano = await getPanorama(service, { pano: link.pano });
+          const distance = geodesicDistanceMeters(node, linkedPano);
+          if (distance == null || distance <= minSegmentDistanceMeters || distance >= maxSegmentDistanceMeters) {
+            reject(frames.length, "distance");
+            continue;
+          }
+          linkData.push({ link, distance });
+        } catch (_) { reject(frames.length, "fetch_error"); }
+      }
+      const links = linkData
+        .filter((item) => !visited.has(item.link.pano))
+        .filter((item) => headingTurn(previousHeading, item.link.heading) <= 90)
+        .map((item) => ({
+          link: item.link,
+          distance_m: item.distance,
+        }));
+      const overridePano = frames.length === 0
+        ? initialOverride?.next_pano_id
+        : null;
+      const eligibleLinks = overridePano
+        ? links.filter(({ link }) => link.pano === overridePano)
+        : links;
+      if (overridePano) diagnostics.initial_override_found = eligibleLinks.length > 0;
+      const linkSummary = links.map(({ link, distance_m }) => ({
+        pano_id: link.pano,
+        heading: Number(link.heading),
+        description: link.description || null,
+        distance_m,
+      }));
+      // Keep the LLM-selected first link fixed. Later frames preserve the
+      // navigation-link order returned by Street View and backtrack as needed.
+      for (const candidate of eligibleLinks) {
+        try {
+          const candidateData = await getPanorama(service, { pano: candidate.link.pano });
+          const candidateDate = candidateData.imageDate || null;
+          if (!dateCompatible(selectedDates, candidateDate)) { reject(frames.length, "date_mismatch"); continue; }
+          const { link: next, distance_m } = candidate;
+          const loc = locationOf(node);
+          const frame = {
+            frame: frames.length,
+            file: `frame_${String(frames.length).padStart(2, "0")}.jpg`,
+            pano_id: node.location.pano,
+            lat: loc.lat,
+            lon: loc.lon,
+            heading: Number(next.heading),
+            next_pano_id: next.pano,
+            next_in_sequence: frames.length < frameCount - 1,
+            next_description: next.description || null,
+            date: node.imageDate || null,
+            ...tileMetadata(node),
+            heading_source: "Maps JavaScript API StreetViewPanoramaData.links[].heading",
+            heading_turn_from_previous: previousHeading == null ? 0 : headingTurn(previousHeading, next.heading),
+            distance_from_previous_m: incomingDistance,
+            distance_to_next_m: distance_m,
+            candidate_links: linkSummary,
+          };
+          const result = await search(
+            candidateData,
+            [...frames, frame],
+            new Set([...visited, next.pano]),
+            [...selectedDates, candidateDate],
+            Number(next.heading),
+            distance_m,
+          );
+          if (result) return result;
+        } catch (_) { reject(frames.length, "fetch_error"); }
+      }
+      reject(frames.length, "dead_end");
+      return null;
+    };
+    const frames = await search(current, [], new Set([current.location.pano]), [startDate], null, null);
+    return {
+      start_pano: startPano,
+      start_links: startLinks,
+      start_candidate_links: startCandidateLinks,
+      initial_override: initialOverride,
+      diagnostics,
+      frames: frames || [],
+    };
+  }
+
+  async function extract() {
+    if (!key) throw new Error("Missing API key in URL fragment");
+    const service = new google.maps.StreetViewService();
+    const result = [];
+    const failedRoutes = [];
+    const globalUsedPanos = new Set(window.__GLOBAL_USED_PANOS__ || []);
+    const attemptRoute = async (route) => {
+      let best = null;
+      const rawOverrides = window.__INITIAL_LINK_OVERRIDES__?.[route.id];
+      const overrides = rawOverrides ? (Array.isArray(rawOverrides) ? rawOverrides : [rawOverrides]) : [];
+      if (!overrides.length) throw new Error(`Missing LLM initial-link override for ${route.id}`);
+      for (const override of overrides) {
+        const attempt = await walk(service, route.id, override, globalUsedPanos);
+        if (!best || attempt.frames.length > best.frames.length || attempt.diagnostics.max_frames_reached > best.diagnostics.max_frames_reached) best = attempt;
+        if (best.frames.length >= frameCount) break;
+      }
+      return { route, best };
+    };
+    // Commit complete paths in input order. Parallel searches could accept
+    // overlapping paths against the same outdated reservation set.
+    for (const seed of routes) {
+      const { route, best } = await attemptRoute(seed);
+      if (best.frames.length !== frameCount) {
+        const constraintError = `No ${frameCount}-frame path satisfies global and within-route pano uniqueness, distance strictly between 1m and 30m, absolute heading-turn <= 90°, and date consistency constraints.`;
+        failedRoutes.push({ id: route.id, name: route.name, start_pano: best.start_pano, start_candidate_links: best.start_candidate_links, diagnostics: best.diagnostics, constraint_error: constraintError });
+      } else if (result.length < targetRouteCount) {
+        const ids = best.frames.map((frame) => frame.pano_id);
+        if (new Set(ids).size !== frameCount || ids.some((id) => globalUsedPanos.has(id))) {
+          throw new Error(`Global pano uniqueness validation failed for ${route.id}`);
+        }
+        for (const id of ids) globalUsedPanos.add(id);
+        result.push({ id: route.id, name: route.name, frame_count_requested: frameCount, constraints: { global_unique_panos: true, max_heading_turn_degrees: 90, heading_turn_rule: "absolute circular turn <= 90 degrees", date_rule: "same YYYY-MM when available, otherwise same YYYY", unique_panos: true, adjacent_geodesic_distance_m: "(1, 30)", later_link_order: "StreetViewPanoramaData.links[] order" }, ...best });
+      }
+    }
+    output.textContent = JSON.stringify({ target_route_count: targetRouteCount, routes: result, failed_routes: failedRoutes }, null, 2);
+  }
+
+  window.onMapsLoaded = () => extract().catch((error) => fail(error));
+  if (!key) fail("Missing API key in URL fragment");
+  else {
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&callback=onMapsLoaded`;
+    script.async = true;
+    script.defer = true;
+    script.onerror = () => fail("Could not load Maps JavaScript API");
+    document.head.appendChild(script);
+  }
+})();
+</script>

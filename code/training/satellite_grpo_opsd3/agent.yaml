@@ -1,0 +1,2 @@
+- name: satellite_single_turn
+  _target_: task_runtime.SatelliteAgent

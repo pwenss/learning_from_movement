@@ -1,0 +1,2 @@
+- name: streetview_single_turn
+  _target_: streetview_runtime.StreetViewAgent
