@@ -156,10 +156,10 @@ SFT generation used vLLM 0.17.1; later GRPO + OPSD evaluations used vLLM 0.29.0.
 
 ### 5.1 SFT results
 
-| Modality | Selected SFT step | Probe EM | Full validation EM | Original base OOD EM | SFT OOD EM |
+| Modality | Selected SFT step | Probe EM | base OOD EM | SFT OOD EM |
 |---|---:|---:|---:|---:|---:|
-| StreetView | 500 | 69.14% | 932/1,445 = 64.50% | 29/3,525 = 0.82% | **2,269/3,525 = 64.37%** |
-| Satellite | 700 | 83.20% | 1,337/1,684 = 79.39% | 39/4,299 = 0.91% | **3,394/4,299 = 78.95%** |
+| StreetView | 500 | 69.14% | 29/3,525 = 0.82% | **2,269/3,525 = 64.37%** |
+| Satellite | 700 | 83.20% | 39/4,299 = 0.91% | **3,394/4,299 = 78.95%** |
 
 ![SFT loss, learning-rate, and gradient dynamics](training/SFT/figures/training_dynamics.png)
 
@@ -173,10 +173,10 @@ Detailed results: [SFT results](training/SFT/sft_results.md).
 
 ### 5.2 GRPO + OPSD: matched merged-SFT comparison
 
-| Modality | Selected cycle / update | Merged SFT OOD EM | Post-training OOD EM | Improvement | Full validation EM |
+| Modality | Selected step | Merged SFT OOD EM | Post-training OOD EM | Improvement |
 |---|---|---:|---:|---:|---:|
-| StreetView | 68 / 272 | 2,248/3,525 = 63.77% | **2,404/3,525 = 68.20%** | **+156 trajectories / +4.43 pp** | 1,007/1,445 = 69.69% |
-| Satellite | 51 / 204 | 3,358/4,299 = 78.11% | **3,515/4,299 = 81.76%** | **+157 trajectories / +3.65 pp** | 1,396/1,684 = 82.90% |
+| StreetView | 68 | 2,248/3,525 = 63.77% | **2,404/3,525 = 68.20%** | **+156 trajectories / +4.43 pp** |
+| Satellite | 51 | 3,358/4,299 = 78.11% | **3,515/4,299 = 81.76%** | **+157 trajectories / +3.65 pp** |
 
 `pp` denotes percentage points. These gains are relative to the **merged SFT start**, rather than the earlier original-adapter scores.
 
