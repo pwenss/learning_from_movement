@@ -2,7 +2,7 @@
 
 ## 1. Release boundary
 
-This is a source and documentation release. It includes small, final figures and aggregate result tables; it excludes images, teacher records, dataset manifests, raw predictions, training histories, audits, weights, and checkpoints. A public dataset download is not provided by this repository.
+This is a source and documentation release. It includes small, final figures and aggregate result tables; it excludes full image datasets, teacher records, dataset manifests, raw predictions, training histories, audits, weights, and checkpoints. One selected eight-image StreetView input is included as a README illustration. A public dataset download is not provided by this repository.
 
 The public source preserves the recorded algorithm, model, dataset contracts, and experiment structure. Environment-specific directories are replaced by placeholders. The formal entry points require the original external resources or an independently prepared dataset matching the documented contracts; merely cloning this repository does not reproduce the reported numbers.
 

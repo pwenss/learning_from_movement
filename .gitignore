@@ -59,3 +59,13 @@ checkpoints/
 !training/OPD/figures/training_dynamics.png
 !training/OPD/figures/checkpoint_probe_dynamics.png
 .publish/
+
+# Selected real task illustration; the full JPEG dataset remains ignored.
+!figures/examples/streetview_task/image_0.jpg
+!figures/examples/streetview_task/image_1.jpg
+!figures/examples/streetview_task/image_2.jpg
+!figures/examples/streetview_task/image_3.jpg
+!figures/examples/streetview_task/image_4.jpg
+!figures/examples/streetview_task/image_5.jpg
+!figures/examples/streetview_task/image_6.jpg
+!figures/examples/streetview_task/image_7.jpg

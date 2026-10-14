@@ -6,7 +6,7 @@
 
 The project contains two independent image modalities—**StreetView** and **Satellite**—and a post-training pipeline comprising **supervised fine-tuning (SFT)** followed by **GRPO + on-policy self-distillation (OPSD)** with a frozen, ground-truth-privileged teacher.
 
-This repository releases the core generation, training, evaluation, and visualization code, experiment descriptions, aggregate results, and selected paper figures. **Images forming the datasets, teacher records, model weights, checkpoints, raw predictions, training logs, and run directories are excluded.**
+This repository releases the core generation, training, evaluation, and visualization code, experiment descriptions, aggregate results, and selected paper figures. **Full image datasets, teacher records, model weights, checkpoints, raw predictions, training logs, and run directories are excluded.** One selected eight-image StreetView example is included solely to illustrate the task input.
 
 ## Contents
 
@@ -44,6 +44,104 @@ ground_truth_order = argsort(s)
 The model produces a structured four-step rationale within `<think>...</think>` and an ordering within `<answer>...</answer>`. Coordinates, route IDs, source filenames, and chronological frame indices are withheld from the model text. Ground-truth order is supplied only to the privileged OPSD teacher during training.
 
 StreetView and Satellite are **separate experiments** with independent trajectories and adapters. They share a task formulation and city split; their examples are not paired across modalities.
+
+### 1.3 Real StreetView task example
+
+The following example is taken from the **New York training split**, trajectory `nyc_new_york__001369`. The eight observations retain the frozen shuffled presentation order used in SFT. Read the panels **left to right, then top to bottom**; `Image k` identifies the presented image, not its chronological position. Click an image to inspect the original 1024 × 512 input.
+
+**User instruction (opening paragraph, verbatim):**
+
+> You are given 8 observation images sampled along a spatial trajectory. The images have been shuffled and are presented in an arbitrary order, labeled Image 0 through Image 7. Each label immediately precedes its corresponding image. The camera's central viewing direction in each image is aligned with the direction of movement along the trajectory. Reconstruct the spatial order in which these 8 observations would be encountered when following the trajectory.
+
+<table>
+  <tr>
+    <td align="center"><strong>Image 0</strong><br><a href="figures/examples/streetview_task/image_0.jpg"><img src="figures/examples/streetview_task/image_0.jpg" width="480" alt="StreetView observation presented as Image 0"></a></td>
+    <td align="center"><strong>Image 1</strong><br><a href="figures/examples/streetview_task/image_1.jpg"><img src="figures/examples/streetview_task/image_1.jpg" width="480" alt="StreetView observation presented as Image 1"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Image 2</strong><br><a href="figures/examples/streetview_task/image_2.jpg"><img src="figures/examples/streetview_task/image_2.jpg" width="480" alt="StreetView observation presented as Image 2"></a></td>
+    <td align="center"><strong>Image 3</strong><br><a href="figures/examples/streetview_task/image_3.jpg"><img src="figures/examples/streetview_task/image_3.jpg" width="480" alt="StreetView observation presented as Image 3"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Image 4</strong><br><a href="figures/examples/streetview_task/image_4.jpg"><img src="figures/examples/streetview_task/image_4.jpg" width="480" alt="StreetView observation presented as Image 4"></a></td>
+    <td align="center"><strong>Image 5</strong><br><a href="figures/examples/streetview_task/image_5.jpg"><img src="figures/examples/streetview_task/image_5.jpg" width="480" alt="StreetView observation presented as Image 5"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Image 6</strong><br><a href="figures/examples/streetview_task/image_6.jpg"><img src="figures/examples/streetview_task/image_6.jpg" width="480" alt="StreetView observation presented as Image 6"></a></td>
+    <td align="center"><strong>Image 7</strong><br><a href="figures/examples/streetview_task/image_7.jpg"><img src="figures/examples/streetview_task/image_7.jpg" width="480" alt="StreetView observation presented as Image 7"></a></td>
+  </tr>
+</table>
+
+*Example input. Eight separate StreetView images as presented to the model. The route identifier above is documentation metadata and is not part of the model prompt.*
+
+<details>
+<summary><strong>Complete frozen student prompt: system and user messages</strong></summary>
+
+**System message**
+
+```text
+You are a visual spatial reasoning assistant specializing in trajectory reconstruction from multiple observations.
+
+Analyze the provided images and produce a detailed, evidence-grounded explanation following the four steps specified in the user prompt. Base your conclusions on visible scene evidence and the stated camera-orientation constraint. Distinguish clear visual correspondences from uncertain matches, and do not invent visual details.
+
+Refer to each observation by its displayed label, Image 0 through Image 7. These labels identify the order of presentation, not the spatial order along the trajectory.
+
+Follow the required output format exactly. Within <think>, use all four step titles from the user prompt verbatim and in the specified order. Within <answer>, output only a list of eight integer indices, using each index from 0 to 7 exactly once. Do not include any text outside these two blocks.
+```
+
+**User message**
+
+```text
+You are given 8 observation images sampled along a spatial trajectory. The images have been shuffled and are presented in an arbitrary order, labeled Image 0 through Image 7. Each label immediately precedes its corresponding image. The camera's central viewing direction in each image is aligned with the direction of movement along the trajectory. Reconstruct the spatial order in which these 8 observations would be encountered when following the trajectory.
+
+Provide a detailed, evidence-grounded explanation using strictly the following four steps, followed by the final order.
+
+Step 1: Global Scene Understanding
+Provide a high-level overview of the environment and the spatial characteristics of the route depicted across the images. Focus on the overall character of the scene along the route rather than inferring their relative order at this stage.
+
+Step 2: Cross-View Correspondence Identification
+Identify visual correspondences across different observations by locating recurring landmarks that appear in multiple views and distinctive local cues that only appear in a subset of observations. Focus on correspondences that provide useful evidence for determining the trajectory order.
+
+Step 3: Viewpoint Transformation Analysis
+Compare observations linked by shared landmarks, focusing on potentially adjacent pairs. For each pair, analyze how the scene changes across observations by examining the transformations of corresponding landmarks, including spatial displacement, apparent scale, viewing angle, and visibility changes. Use these visual transformations to infer relative order under the forward-facing camera constraint. Check whether their viewpoint transitions are physically consistent and whether they form a continuous movement path.
+
+Step 4: Final Sequence Determination
+Combine the inferred pairwise spatial relationships to construct the final trajectory order, ensuring that every image index appears exactly once.
+
+Output using exactly the following format:
+
+<think>
+Step 1: Global Scene Understanding
+...
+Step 2: Cross-View Correspondence Identification
+...
+Step 3: Viewpoint Transformation Analysis
+...
+Step 4: Final Sequence Determination
+...
+</think>
+
+<answer>
+[i0, i1, i2, i3, i4, i5, i6, i7]
+</answer>
+```
+
+After this user text, each label `Image 0:` through `Image 7:` immediately precedes its corresponding individual image input, in the order shown above.
+
+</details>
+
+<details>
+<summary><strong>Reference order — not supplied to the student</strong></summary>
+
+```text
+<answer>
+[0, 1, 6, 3, 7, 2, 5, 4]
+</answer>
+```
+
+This is the verified chronological ordering of the **presented image labels**. It is shown here for interpreting the example, not as student input.
+
+</details>
 
 ## 2. Dataset construction
 
@@ -222,7 +320,8 @@ learning_from_movement/
 │   └── OPD/{experiment_setup.md,results.md,figures/}
 └── figures/
     ├── src/                        # Map / trajectory figure utilities
-    └── output/{figure1.png,figure2.png}
+    ├── output/{figure1.png,figure2.png}
+    └── examples/streetview_task/     # One selected eight-image input example
 ```
 
 The release excludes obsolete deployment benchmarks, pilot orchestration, process-state snapshots, raw audit files, dataset manifests, tile caches, and model artifacts. Configuration inheritance helpers are retained where required by the formal StreetView runtime.
